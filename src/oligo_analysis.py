@@ -73,36 +73,49 @@ class Pattern():
 class OligoPatterns():
     """Maintains oligo patterns through analysis."""
 
-    def __init__(self, num_sequences: int):
+    def __init__(self, num_sequences: int, sum_reverse_compliment: bool):
         self.patterns: dict[str, Pattern] = dict()
         self.__num_sequences = num_sequences
         self.__nucleotide_freq = None
+        self.__sum_reverse_compliment = sum_reverse_compliment
 
     def get_pattern(self, pattern: str) -> Pattern:
         """Gets the corresponding Pattern object if it exists, 
         or creates a new one if not encountered before."""
+        pattern = pattern.upper()
         if pattern not in self.patterns:
             self.patterns[pattern] = Pattern()
 
         return self.patterns[pattern]
 
-    def print_counts(self, top=10):
+    def print_counts(self, top=20):
         """Prints `top` counts ranked by signifigance."""
+        logging.info(f'Printing results')
         headers = ['pattern', 'mseq', 'occ', 'exp', 'p-value']
+
+        # keep track of pattern and p-value for comparison
+        top_patterns = [(pattern, self.patterns[pattern].occ_P)
+                        for pattern in self.patterns.keys()]
+        top_patterns.sort(key=lambda tup: tup[-1])
+        top_patterns = top_patterns[:top]
 
         results = [
             [pattern,
              len(self.patterns[pattern].mseq),
              self.patterns[pattern].occ,
              self.patterns[pattern].exp_freq * self.total_occurences,
-             self.patterns[pattern].occ_P] for pattern in self.patterns.keys()
+             self.patterns[pattern].occ_P] for pattern, _ in top_patterns
         ]
-        results.sort(key=lambda list: list[-1])
-        print(tabulate(results[:top], headers=headers))
+
+        print(tabulate(results, headers=headers))
 
     def calibrate_nucleotide_freq(self, nucleotide_freq: dict[str, int]):
         """Sets the nucleotide frequency to use in significance calculations."""
         self.__nucleotide_freq = nucleotide_freq
+
+        # ambiguous nucleotide code
+        self.__nucleotide_freq['N'] = 1
+        logging.info(f'Nucleotide frequencies used: {self.__nucleotide_freq}')
 
     @property
     def total_occurences(self):
@@ -133,13 +146,8 @@ def count_oligos(sequences: list[str], oligo_length, bg_method):
 
         # count oligomers
         current_pos = last_pos
-        chunk = 100000  # report progress every chunk
 
         while (current_pos >= 0):
-            if (current_pos % chunk == 0 and current_pos > 0):
-                logging.info(
-                    f'Sequence {seq_id}\tremain to read: {current_pos}')
-
             # occurences
             pattern_seq = sequence[current_pos: current_pos + oligo_length]
             curr_pattern = oligo.get_pattern(pattern_seq)
@@ -148,6 +156,8 @@ def count_oligos(sequences: list[str], oligo_length, bg_method):
             curr_pattern.update_contained_with(seq_id)
 
             current_pos -= 1
+
+    logging.info(f'{len(oligo.patterns)} oligomers to consider')
 
     return oligo
 
@@ -216,11 +226,23 @@ def calc_prob(oligo: OligoPatterns):
     logging.info("Calculating p-values")
     total_occ = oligo.total_occurences
 
+    # report progress every 5%
+    quantile = round(len(oligo.patterns.keys()) / 20)
+    thresholds = [i * quantile for i in range(1, 20)]
+
     # right tailed (overepresentation)
+    i = 0
     for pattern_seq in oligo.patterns.keys():
+        if i in thresholds:
+            logging.info(
+                f'Calculating p-values - {(thresholds.index(i) + 1) * 5}% complete')
+
         pattern = oligo.get_pattern(pattern_seq)
         pattern.occ_P = sum_of_binomials(
             pattern.exp_freq, total_occ, pattern.occ, total_occ)
+        i += 1
+
+    logging.info(f'Calculating p-values - 100% complete')
 
 
 def main():
@@ -234,8 +256,14 @@ def main():
     LOG_LEVELS = {'info': logging.INFO, 'debug': logging.DEBUG}
     parser.add_argument('-log', action="store", dest="loglevel", choices=list(LOG_LEVELS.keys()),
                         type=str, default="info", help="Display log messages during execution")
+    parser.add_argument('-top', action="store", dest="top",
+                        type=int, default=25, help="Number of results to display")
 
     args = parser.parse_args()
+    logging.basicConfig(encoding='utf-8',
+                        level=LOG_LEVELS[args.loglevel],
+                        format='%(asctime)s %(levelname)-8s %(message)s',
+                        datefmt='%Y-%m-%d %H:%M:%S')
     sequences = read_fasta(args.f)
     k = args.k
 
@@ -244,9 +272,8 @@ def main():
     calc_frequencies(patterns)
     calc_expected(patterns)
     calc_prob(patterns)
-    patterns.print_counts()
+    patterns.print_counts(top=args.top)
 
 
 if __name__ == '__main__':
-    logging.basicConfig(encoding='utf-8', level=logging.INFO)
     main()

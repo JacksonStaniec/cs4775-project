@@ -9,6 +9,8 @@ def nucleotide_freqs(sequences: list[str]):
     total = 0
     for seq in sequences:
         for base in seq:
-            freqs[base] += 1
-            total += 1
+            base = base.upper()
+            if base in freqs:
+                freqs[base] += 1
+                total += 1
     return {base: freq / total for base, freq in freqs.items()}
