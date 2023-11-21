@@ -49,9 +49,24 @@ class Pattern():
         self.ms_freq = 0  # observed frequency in sequences
         self.occ_P = 0  # p-vale of occurences
 
-    def updated_occurred(self):
-        """Increments the number of occurences."""
-        self.occ += 1
+        # indexes where overlap is forbidden
+        self.forbidden: set[int] = set()
+
+    def updated_occurred(self, index, k, no_overlaps):
+        """Increments the number of occurences. Accounts for overlapping matches."""
+        if no_overlaps:
+            if index not in self.forbidden:
+                self.occ += 1
+
+                # update forbidden region
+                for i in range(0, k):
+                    self.forbidden.add(index - i)
+        else:
+            self.occ += 1
+
+    def reset_forbidden(self):
+        # indexes where overlap is forbidden
+        self.forbidden: set[int] = set()
 
     def update_contained_with(self, sequence):
         """Updates the sequences that contained this pattern."""
@@ -73,11 +88,10 @@ class Pattern():
 class OligoPatterns():
     """Maintains oligo patterns through analysis."""
 
-    def __init__(self, num_sequences: int, sum_reverse_compliment: bool):
+    def __init__(self, num_sequences: int):
         self.patterns: dict[str, Pattern] = dict()
         self.__num_sequences = num_sequences
         self.__nucleotide_freq = None
-        self.__sum_reverse_compliment = sum_reverse_compliment
 
     def get_pattern(self, pattern: str) -> Pattern:
         """Gets the corresponding Pattern object if it exists, 
@@ -117,6 +131,19 @@ class OligoPatterns():
         self.__nucleotide_freq['N'] = 1
         logging.info(f'Nucleotide frequencies used: {self.__nucleotide_freq}')
 
+    def remove_repeat_patterns(self):
+        """Removes all patterns from consideration that are just repeat nucleotides. (Ex. TTTTTT)"""
+        # repeat if first character is all characters
+        all_patterns = list(self.patterns.keys())
+        for pattern in all_patterns:
+            if (pattern.count(pattern[0]) == len(pattern)):
+                self.patterns.pop(pattern)
+
+    def reset_overlap_regions(self):
+        """Resets overlapping regions in preparation for new sequence."""
+        for pattern in self.patterns.values():
+            pattern.reset_forbidden()
+
     @property
     def total_occurences(self):
         """The total number of occurrences across all patterns."""
@@ -136,7 +163,7 @@ class OligoPatterns():
         return self.__nucleotide_freq
 
 
-def count_oligos(sequences: list[str], oligo_length, bg_method):
+def count_oligos(sequences: list[str], oligo_length: int, no_overlaps: bool):
     """Discover and count occurences for all k-mers."""
     logging.info('Counting oligo frequencies')
 
@@ -152,10 +179,13 @@ def count_oligos(sequences: list[str], oligo_length, bg_method):
             pattern_seq = sequence[current_pos: current_pos + oligo_length]
             curr_pattern = oligo.get_pattern(pattern_seq)
 
-            curr_pattern.updated_occurred()
+            curr_pattern.updated_occurred(
+                current_pos, oligo_length, no_overlaps)
             curr_pattern.update_contained_with(seq_id)
 
             current_pos -= 1
+
+        oligo.reset_overlap_regions()
 
     logging.info(f'{len(oligo.patterns)} oligomers to consider')
 
@@ -258,6 +288,8 @@ def main():
                         type=str, default="info", help="Display log messages during execution")
     parser.add_argument('-top', action="store", dest="top",
                         type=int, default=25, help="Number of results to display")
+    parser.add_argument('-noov', action="store_true", dest="no_overlap",
+                        default=False, help="Don't count overlapping matches")
 
     args = parser.parse_args()
     logging.basicConfig(encoding='utf-8',
@@ -267,8 +299,9 @@ def main():
     sequences = read_fasta(args.f)
     k = args.k
 
-    patterns = count_oligos(sequences, k, "any")
+    patterns = count_oligos(sequences, k, args.no_overlap)
     patterns.calibrate_nucleotide_freq(util.nucleotide_freqs(sequences))
+    patterns.remove_repeat_patterns()
     calc_frequencies(patterns)
     calc_expected(patterns)
     calc_prob(patterns)
