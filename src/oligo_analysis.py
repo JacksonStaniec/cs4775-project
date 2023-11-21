@@ -9,6 +9,7 @@ import argparse
 import numpy as np
 from tabulate import tabulate
 import util
+import csv
 
 
 # fasta reader from class
@@ -93,6 +94,8 @@ class OligoPatterns():
         self.__num_sequences = num_sequences
         self.__nucleotide_freq = None
 
+        self.HEADERS = ['pattern', 'mseq', 'occ', 'exp', 'p-value']
+
     def get_pattern(self, pattern: str) -> Pattern:
         """Gets the corresponding Pattern object if it exists, 
         or creates a new one if not encountered before."""
@@ -102,10 +105,9 @@ class OligoPatterns():
 
         return self.patterns[pattern]
 
-    def print_counts(self, top=20):
-        """Prints `top` counts ranked by signifigance."""
-        logging.info(f'Printing results')
-        headers = ['pattern', 'mseq', 'occ', 'exp', 'p-value']
+    def get_results(self, top=20):
+        """Gets `top` counts ranked by signifigance."""
+        logging.info(f'Getting results')
 
         # keep track of pattern and p-value for comparison
         top_patterns = [(pattern, self.patterns[pattern].occ_P)
@@ -121,7 +123,23 @@ class OligoPatterns():
              self.patterns[pattern].occ_P] for pattern, _ in top_patterns
         ]
 
-        print(tabulate(results, headers=headers))
+        return results
+
+    def print_results(self, top=20):
+        """Prints `top` counts ranked by signifigance."""
+        logging.info(f'Printing results')
+
+        print(tabulate(self.get_results(top=top), headers=self.HEADERS))
+
+    def write_results(self, outfile, top=20):
+        """Writes `top` results to `outfile`.csv"""
+        logging.info(f'Writing results')
+        with open(outfile, 'w', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile)
+            csvwriter.writerow(self.HEADERS)
+
+            # write data
+            csvwriter.writerows(self.get_results(top=top))
 
     def calibrate_nucleotide_freq(self, nucleotide_freq: dict[str, int]):
         """Sets the nucleotide frequency to use in significance calculations."""
@@ -283,13 +301,18 @@ def main():
                         help="The fasta file with the sequences")
     parser.add_argument('-k', action="store", dest="k",
                         type=int, default=10, help="Find k-mer motifs")
-    LOG_LEVELS = {'info': logging.INFO, 'debug': logging.DEBUG}
+    LOG_LEVELS = {'info': logging.INFO,
+                  'debug': logging.DEBUG, 'critical': logging.CRITICAL}
     parser.add_argument('-log', action="store", dest="loglevel", choices=list(LOG_LEVELS.keys()),
                         type=str, default="info", help="Display log messages during execution")
     parser.add_argument('-top', action="store", dest="top",
                         type=int, default=25, help="Number of results to display")
     parser.add_argument('-noov', action="store_true", dest="no_overlap",
                         default=False, help="Don't count overlapping matches")
+    parser.add_argument('-print', action="store_true", dest="print_results",
+                        default=False, help="Whether to print the results.")
+    parser.add_argument('-out', action="store", dest="outfile",
+                        default=None, help="File to write csv of results.")
 
     args = parser.parse_args()
     logging.basicConfig(encoding='utf-8',
@@ -305,7 +328,12 @@ def main():
     calc_frequencies(patterns)
     calc_expected(patterns)
     calc_prob(patterns)
-    patterns.print_counts(top=args.top)
+
+    if args.print_results:
+        patterns.print_results(top=args.top)
+
+    if args.outfile:
+        patterns.write_results(args.outfile, top=args.top)
 
 
 if __name__ == '__main__':
