@@ -162,6 +162,32 @@ class OligoPatterns():
         for pattern in self.patterns.values():
             pattern.reset_forbidden()
 
+    def sum_reverse_compliments(self):
+        """Sums reverse compliment occurrences, and removes the least frequent one."""
+        all_patterns = list(self.patterns.keys())
+        removes = []  # keep track of which patterns to remove
+        for pattern in all_patterns:
+            reverse_compliment = util.reverse_compliment(pattern)
+
+            # dont double count palindromes
+            if pattern == reverse_compliment:
+                continue
+
+            # if reverse compliment seen, then sum the occurences and remove
+            # the sequence that occurred least
+            if reverse_compliment in all_patterns:
+                p = self.get_pattern(pattern)
+                rc = self.get_pattern(reverse_compliment)
+                if p.occ > rc.occ:  # this is the more frequent pattern
+                    p.occ += rc.occ
+                    p.mseq = p.mseq.union(rc.mseq)
+                else:  # this is the least frequent pattern
+                    removes.append(pattern)
+
+        # remove reverse compliments
+        for pattern in removes:
+            self.patterns.pop(pattern)
+
     @property
     def total_occurences(self):
         """The total number of occurrences across all patterns."""
@@ -307,9 +333,11 @@ def main():
                         type=str, default="info", help="Display log messages during execution")
     parser.add_argument('-top', action="store", dest="top",
                         type=int, default=25, help="Number of results to display")
-    parser.add_argument('-noov', action="store_true", dest="no_overlap",
+    parser.add_argument('--noov', action="store_true", dest="no_overlap",
                         default=False, help="Don't count overlapping matches")
-    parser.add_argument('-print', action="store_true", dest="print_results",
+    parser.add_argument('--norc', action="store_true", dest="no_reverse_compliment",
+                        default=False, help="Sum occurences of reverse compliments")
+    parser.add_argument('--print', action="store_true", dest="print_results",
                         default=False, help="Whether to print the results.")
     parser.add_argument('-out', action="store", dest="outfile",
                         default=None, help="File to write csv of results.")
@@ -325,6 +353,10 @@ def main():
     patterns = count_oligos(sequences, k, args.no_overlap)
     patterns.calibrate_nucleotide_freq(util.nucleotide_freqs(sequences))
     patterns.remove_repeat_patterns()
+
+    if args.no_reverse_compliment:
+        patterns.sum_reverse_compliments()
+
     calc_frequencies(patterns)
     calc_expected(patterns)
     calc_prob(patterns)

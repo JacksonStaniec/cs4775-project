@@ -14,3 +14,20 @@ def nucleotide_freqs(sequences: list[str]):
                 freqs[base] += 1
                 total += 1
     return {base: freq / total for base, freq in freqs.items()}
+
+
+def reverse_compliment(sequence: str):
+    """
+    Returns the reverse compliment of the sequence.
+
+    >>> reverse_compliment('ATGGGTAGCG')
+    >>> 'CGCTACCCAT'
+    """
+    COMPLIMENT = {'A': 'T', 'T': 'A',
+                  'G': 'C', 'C': 'G',
+                  'N': 'N'}
+    compliment_strand = ''
+    for base in sequence:
+        compliment_strand += COMPLIMENT[base]
+
+    return compliment_strand[::-1]

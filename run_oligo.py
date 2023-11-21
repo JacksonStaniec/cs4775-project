@@ -10,7 +10,7 @@ def run_analysis(args):
     outfile = f'{data}_k{k}'
     result = subprocess.call(["python", "./src/oligo_analysis.py", "-f",
                              f"./data/{data}_shortened.fasta", '-k', str(
-                                 k), '-noov', '-top', '10000', '-log', 'critical',
+                                 k), '--noov', '--norc', '-top', '10000', '-log', 'critical',
                               '-out', f'./results/oligo/{outfile}.csv'],  shell=False)
 
 
