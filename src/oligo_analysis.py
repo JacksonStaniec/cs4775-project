@@ -48,7 +48,8 @@ class Pattern():
         self.obs_freq = 0  # observed relative frequency
         self.exp_freq = 0  # expected relative frequency
         self.ms_freq = 0  # observed frequency in sequences
-        self.occ_P = 0  # p-vale of occurences
+        self.occ_p = 0  # p-value of occurences
+        self.zscore = 0  # z-score of occurences
 
         # indexes where overlap is forbidden
         self.forbidden: set[int] = set()
@@ -94,7 +95,7 @@ class OligoPatterns():
         self.__num_sequences = num_sequences
         self.__nucleotide_freq = None
 
-        self.HEADERS = ['pattern', 'mseq', 'occ', 'exp', 'p-value']
+        self.HEADERS = ['pattern', 'mseq', 'occ', 'exp', 'p-value', 'z-score']
 
     def get_pattern(self, pattern: str) -> Pattern:
         """Gets the corresponding Pattern object if it exists, 
@@ -109,10 +110,10 @@ class OligoPatterns():
         """Gets `top` counts ranked by signifigance."""
         logging.info(f'Getting results')
 
-        # keep track of pattern and p-value for comparison
-        top_patterns = [(pattern, self.patterns[pattern].occ_P)
+        # keep track of pattern and zscore for comparison
+        top_patterns = [(pattern, self.patterns[pattern].zscore)
                         for pattern in self.patterns.keys()]
-        top_patterns.sort(key=lambda tup: tup[-1])
+        top_patterns.sort(key=lambda tup: -tup[-1])
         top_patterns = top_patterns[:top]
 
         results = [
@@ -120,7 +121,8 @@ class OligoPatterns():
              len(self.patterns[pattern].mseq),
              self.patterns[pattern].occ,
              self.patterns[pattern].exp_freq * self.total_occurences,
-             self.patterns[pattern].occ_P] for pattern, _ in top_patterns
+             self.patterns[pattern].occ_p,
+             self.patterns[pattern].zscore] for pattern, _ in top_patterns
         ]
 
         return results
@@ -312,11 +314,22 @@ def calc_prob(oligo: OligoPatterns):
                 f'Calculating p-values - {(thresholds.index(i) + 1) * 5}% complete')
 
         pattern = oligo.get_pattern(pattern_seq)
-        pattern.occ_P = sum_of_binomials(
+        pattern.occ_p = sum_of_binomials(
             pattern.exp_freq, total_occ, pattern.occ, total_occ)
         i += 1
 
     logging.info(f'Calculating p-values - 100% complete')
+
+
+def calc_zscore(oligo: OligoPatterns):
+    """Calculates z-scores for pattern occurences"""
+    logging.info(f'Calculating z-scores')
+    total_occ = oligo.total_occurences
+
+    for pattern in oligo.patterns.values():
+        expected = pattern.exp_freq * total_occ
+        stdev = np.sqrt(expected)
+        pattern.zscore = (pattern.occ - expected) / stdev
 
 
 def main():
@@ -360,6 +373,7 @@ def main():
     calc_frequencies(patterns)
     calc_expected(patterns)
     calc_prob(patterns)
+    calc_zscore(patterns)
 
     if args.print_results:
         patterns.print_results(top=args.top)

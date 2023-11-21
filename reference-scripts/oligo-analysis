@@ -1388,24 +1388,24 @@ sub CalcZscore {
 
 	    ## Calculate expected variance
 	    unless ($bg_method =~ /calibration/i) {
-		if ($noov eq "-noov") {
-		    ### With the option -noov, there is no problem of overlap
-		    ### The expected variance thus equals the expected occurrences
-		    $patterns{$pattern_seq}->{'exp_var'} = $patterns{$pattern_seq}->{'exp_occ'};
-		} else {
-		    ### Correction for self-overlapping patterns
-#		$patterns{$pattern_seq}->{ovlp} = &OverlapCoeff($pattern_seq);
-		    $patterns{$pattern_seq}->{'exp_var'} = $patterns{$pattern_seq}->{'notforb'} * $patterns{$pattern_seq}->{'exp_freq'}*(2*$patterns{$pattern_seq}->{ovlp} - 1 - (2*$oligo_length+1)*$patterns{$pattern_seq}->{'exp_freq'});
-#       	$patterns{$pattern_seq}->{'exp_var'} = $patterns{$pattern_seq}->{'notforb'} * $patterns{$pattern_seq}->{'exp_freq'}*(1 - $patterns{$pattern_seq}->{'exp_freq'});
-		}
+        if ($noov eq "-noov") {
+            ### With the option -noov, there is no problem of overlap
+            ### The expected variance thus equals the expected occurrences
+            $patterns{$pattern_seq}->{'exp_var'} = $patterns{$pattern_seq}->{'exp_occ'};
+        } else {
+            ### Correction for self-overlapping patterns
+    #		$patterns{$pattern_seq}->{ovlp} = &OverlapCoeff($pattern_seq);
+            $patterns{$pattern_seq}->{'exp_var'} = $patterns{$pattern_seq}->{'notforb'} * $patterns{$pattern_seq}->{'exp_freq'}*(2*$patterns{$pattern_seq}->{ovlp} - 1 - (2*$oligo_length+1)*$patterns{$pattern_seq}->{'exp_freq'});
+    #       	$patterns{$pattern_seq}->{'exp_var'} = $patterns{$pattern_seq}->{'notforb'} * $patterns{$pattern_seq}->{'exp_freq'}*(1 - $patterns{$pattern_seq}->{'exp_freq'});
+        }
 	    }
 
 	    if ($patterns{$pattern_seq}->{'exp_var'} > 0) {
-		$stdev = sqrt($patterns{$pattern_seq}->{'exp_var'});
-		$patterns{$pattern_seq}->{zscore} = ($patterns{$pattern_seq}->{occ} - $patterns{$pattern_seq}->{'exp_occ'})/$stdev;
-	    } else {
-		$stdev = "NA";
-		$patterns{$pattern_seq}->{zscore} = "NA";
+        $stdev = sqrt($patterns{$pattern_seq}->{'exp_var'});
+        $patterns{$pattern_seq}->{zscore} = ($patterns{$pattern_seq}->{occ} - $patterns{$pattern_seq}->{'exp_occ'})/$stdev;
+          } else {
+      $stdev = "NA";
+      $patterns{$pattern_seq}->{zscore} = "NA";
 	    }
 	}
     }
