@@ -10,3 +10,7 @@ python oligomer_analysis.py -f [data file] -k [motif length]
 ## Position Analysis
 ```
 see notebook
+```
+
+## Data
+Data can be found on Box ().
