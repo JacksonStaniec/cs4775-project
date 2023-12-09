@@ -13,4 +13,4 @@ see notebook
 ```
 
 ## Data
-Data can be found on Box ().
+Data can be found on Box (https://cornell.box.com/s/020dpidze9pz7kkxgdwcj3o960m3ctaf).
