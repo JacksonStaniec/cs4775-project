@@ -3,7 +3,8 @@
 Contributors: Cameron Xu, Jackson Staniec, Alexandra Tarzanin
 
 ## Data Proprocessing
-[preprocessing pipeline]
+<img width="259" alt="image" src="https://github.com/JacksonStaniec/cs4775-project/assets/81320443/98f2dcc0-a7a3-4c50-b0b5-40b3e0d5097c">
+
 Intermediate data from the proprocessing pipeline can be found in BigWig, BED, 
 and Fasta formats on [Cornell Box](https://cornell.box.com/s/020dpidze9pz7kkxgdwcj3o960m3ctaf).
 
